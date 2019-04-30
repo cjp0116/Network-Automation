@@ -1,0 +1,43 @@
+
+from cli import cli as cmd
+
+myconfig = cmd('show run')
+vlan_config = cmd('configure terminal; vlan 99; name MGMT; vlan 20; name HR; end')
+myinterfaces = cmd('show ip int bri')
+########## Possible regexes for gigabitethernet interfaces, cisco mac addresses, and fastethernet interfaces ##########
+
+gigEthernet = / (\w+\d+(\ / \d+\ / \d+\:\d+\.\d+ | \ / \d+\ / \d+\ / \d+ | \ / \d+\ / \d+\.\d+ | \ / \d+\.\d+ | \ / \d+\ / \d+ | \ / \d+)? | \w +\-\w +) /
+fastEthernet = (\D+)(\d +)(?:\ /)?(\d+)?(?:\.)?(\d+)?
+potential_mac = ([0 - 9A - Fa - f]{2}[:-]){5}([0 - 9A - Fa - f]{2})$
+
+
+with open('/flash/upinterfaces.txt', 'w+') as f:
+    for line in myinterfaces.split('\n'):
+        if 'administratively' in line:
+            continue
+        f.write(line)
+
+def shutdown_int():
+    """ prints current ip interfaces and asks which you would like to shut down"""
+    
+    print(myinterfaces.split('\n'))
+    x = input('Enter which interface you would like to shudown')
+    cmd('configure terminal; interface '+ x,'; shutdown')
+
+def disable_BPDU():
+    """ pings the ip, finds the port that IP resides on, and performs BPDU guard disable"""
+    
+    ip = input('Enter the remote host IP address that needs BPDU disable')
+    ping = cmd('ping' + ip)
+    if '0% success' in ping.split('\n'):
+        print('The destination host is unreachable')
+    elif arp_table = cmd('show ip arp' + ip):
+        if potential_mac in arp_table.split('\n'):
+            mac_table = cmd('show mac address-table address' + potential_mac).split('\n')
+            print(mac_table.split('\n'))
+            if potential_mac > 1:
+                print('This is a trunk port')
+            elif potential_mac == fastEthernet:
+                cmd('interface '+fastEthernet'; spanning-tree bpduguard disable')
+            else:
+                cmd('interface' + gigEthernet'; spanning-tree bpduguard disable')
